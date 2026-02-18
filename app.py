@@ -26,14 +26,29 @@ if "feedback" not in st.session_state:
 
 def generate_question():
     if random.choice(["mul", "div"]) == "mul":
-        a = random.randint(1, 99)
-        b = random.randint(1, 99)
+        # 掛け算：2桁 × 1桁
+        a = random.randint(10, 99)  # 2桁
+        b = random.randint(1, 9)     # 1桁
         return f"{a} × {b}", a * b
     else:
-        b = random.randint(1, 99)
-        ans = random.randint(1, 99)
-        a = b * ans
-        return f"{a} ÷ {b}", ans
+        # 割り算：2桁 ÷ 1桁（必ず割り切れる）
+        # 割られる数は2桁（10〜99）、答えは1桁（1〜9）にする
+        divisor = random.randint(1, 9)  # 割る数：1桁
+        
+        # 答えの範囲を計算（割られる数が10〜99、答えが1〜9になるように）
+        min_quotient = (10 + divisor - 1) // divisor  # 切り上げ：10以上にする
+        max_quotient = min(9, 99 // divisor)           # 切り捨て：99以下、かつ9以下にする
+        
+        # 有効な範囲があるかチェック
+        if min_quotient <= max_quotient:
+            quotient = random.randint(min_quotient, max_quotient)
+        else:
+            # 理論的には発生しないが、念のため
+            quotient = 9
+        
+        dividend = divisor * quotient  # 割られる数：必ず10〜99、答えは1〜9
+        
+        return f"{dividend} ÷ {divisor}", quotient
 
 
 def start_game():
@@ -101,5 +116,7 @@ else:
         st.success(
             f"Finished! Score: {st.session_state.correct_count}/10 | Time: {elapsed}s"
         )
+        if st.button("Play Again", on_click=start_game):
+            pass
         if st.button("Play Again", on_click=start_game):
             pass
