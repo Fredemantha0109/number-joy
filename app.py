@@ -14,9 +14,6 @@ if "question" not in st.session_state:
     st.session_state.question = ""
 if "answer" not in st.session_state:
     st.session_state.answer = 0
-# 入力文字列（ウィジェットとは別管理）
-if "input_text" not in st.session_state:
-    st.session_state.input_text = ""
 if "correct_count" not in st.session_state:
     st.session_state.correct_count = 0
 if "question_index" not in st.session_state:
@@ -27,6 +24,9 @@ if "feedback" not in st.session_state:
     st.session_state.feedback = ""
 if "ranking_saved" not in st.session_state:
     st.session_state.ranking_saved = False
+# テキスト入力欄に対応する内部状態
+if "answer_input" not in st.session_state:
+    st.session_state.answer_input = ""
 
 SPREADSHEET_URL = (
     "https://docs.google.com/spreadsheets/d/"
@@ -129,7 +129,7 @@ def start_game():
     st.session_state.correct_count = 0
     st.session_state.question_index = 0
     st.session_state.start_time = time.time()
-    st.session_state.input_text = ""
+    st.session_state.answer_input = ""
     st.session_state.feedback = ""
     st.session_state.ranking_saved = False
     q, a = generate_question()
@@ -139,7 +139,7 @@ def start_game():
 
 def next_question():
     st.session_state.question_index += 1
-    st.session_state.input_text = ""
+    st.session_state.answer_input = ""
     st.session_state.feedback = ""
     if st.session_state.question_index < 10:
         q, a = generate_question()
@@ -148,7 +148,7 @@ def next_question():
 
 
 def check_answer():
-    raw = st.session_state.input_text.strip()
+    raw = st.session_state.get("answer_input", "").strip()
     if raw == "":
         return
 
@@ -156,32 +156,17 @@ def check_answer():
         user = int(raw)
     except ValueError:
         st.session_state.feedback = "数字を入力してください"
-        st.session_state.input_text = ""
+        st.session_state.answer_input = ""
         return
 
     if user == st.session_state.answer:
         st.session_state.correct_count += 1
         st.session_state.feedback = "Correct!"
-        st.session_state.input_text = ""
+        st.session_state.answer_input = ""
         next_question()
     else:
         st.session_state.feedback = "Try again"
-        st.session_state.input_text = ""
-
-
-def keypad_append(digit: str):
-    """テンキーで数字を追加（ウィジェットとは別の状態を更新）"""
-    st.session_state.input_text = (st.session_state.input_text or "") + digit
-
-
-def keypad_clear():
-    """テンキー入力をクリア"""
-    st.session_state.input_text = ""
-
-
-def keypad_ok():
-    """テンキーのOKで送信"""
-    check_answer()
+        st.session_state.answer_input = ""
 
 
 if not st.session_state.started:
@@ -191,51 +176,12 @@ else:
         st.subheader(f"Question {st.session_state.question_index + 1}/10")
         st.markdown(f"## {st.session_state.question}")
 
-        # テキスト入力（PC用）：Enterキー or ボタンで送信
-        with st.form("answer_form"):
-            answer_str = st.text_input(
-                "Answer",
-                value=st.session_state.input_text,
-            )
-            submitted = st.form_submit_button("OK (Enter)")
-
-        if submitted:
-            st.session_state.input_text = answer_str
-            check_answer()
-
-        # テンキーUI（タブレット・スマホ向け）
-        st.markdown("### Keypad")
-        col1, col2, col3 = st.columns(3)
-
-        with col1:
-            if st.button("1", use_container_width=True):
-                keypad_append("1")
-            if st.button("4", use_container_width=True):
-                keypad_append("4")
-            if st.button("7", use_container_width=True):
-                keypad_append("7")
-            if st.button("C", use_container_width=True):
-                keypad_clear()
-
-        with col2:
-            if st.button("2", use_container_width=True):
-                keypad_append("2")
-            if st.button("5", use_container_width=True):
-                keypad_append("5")
-            if st.button("8", use_container_width=True):
-                keypad_append("8")
-            if st.button("0", use_container_width=True):
-                keypad_append("0")
-
-        with col3:
-            if st.button("3", use_container_width=True):
-                keypad_append("3")
-            if st.button("6", use_container_width=True):
-                keypad_append("6")
-            if st.button("9", use_container_width=True):
-                keypad_append("9")
-            if st.button("OK", use_container_width=True):
-                keypad_ok()
+        # テキスト入力のみ。Enterキーで即判定。
+        st.text_input(
+            "Answer",
+            key="answer_input",
+            on_change=check_answer,
+        )
 
         if st.session_state.feedback:
             st.write(st.session_state.feedback)
