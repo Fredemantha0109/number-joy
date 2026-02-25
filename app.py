@@ -118,5 +118,4 @@ else:
         )
         if st.button("Play Again", on_click=start_game):
             pass
-        if st.button("Play Again", on_click=start_game):
-            pass
+
