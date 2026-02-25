@@ -14,8 +14,9 @@ if "question" not in st.session_state:
     st.session_state.question = ""
 if "answer" not in st.session_state:
     st.session_state.answer = 0
-if "input" not in st.session_state:
-    st.session_state.input = ""
+# 入力文字列（ウィジェットとは別管理）
+if "input_text" not in st.session_state:
+    st.session_state.input_text = ""
 if "correct_count" not in st.session_state:
     st.session_state.correct_count = 0
 if "question_index" not in st.session_state:
@@ -128,7 +129,7 @@ def start_game():
     st.session_state.correct_count = 0
     st.session_state.question_index = 0
     st.session_state.start_time = time.time()
-    st.session_state.input = ""
+    st.session_state.input_text = ""
     st.session_state.feedback = ""
     st.session_state.ranking_saved = False
     q, a = generate_question()
@@ -138,7 +139,7 @@ def start_game():
 
 def next_question():
     st.session_state.question_index += 1
-    st.session_state.input = ""
+    st.session_state.input_text = ""
     st.session_state.feedback = ""
     if st.session_state.question_index < 10:
         q, a = generate_question()
@@ -147,7 +148,7 @@ def next_question():
 
 
 def check_answer():
-    raw = st.session_state.input.strip()
+    raw = st.session_state.input_text.strip()
     if raw == "":
         return
 
@@ -155,26 +156,27 @@ def check_answer():
         user = int(raw)
     except ValueError:
         st.session_state.feedback = "数字を入力してください"
-        st.session_state.input = ""
+        st.session_state.input_text = ""
         return
 
     if user == st.session_state.answer:
         st.session_state.correct_count += 1
         st.session_state.feedback = "Correct!"
+        st.session_state.input_text = ""
         next_question()
     else:
         st.session_state.feedback = "Try again"
-        st.session_state.input = ""
+        st.session_state.input_text = ""
 
 
 def keypad_append(digit: str):
-    """テンキーで数字を追加"""
-    st.session_state.input = (st.session_state.input or "") + digit
+    """テンキーで数字を追加（ウィジェットとは別の状態を更新）"""
+    st.session_state.input_text = (st.session_state.input_text or "") + digit
 
 
 def keypad_clear():
     """テンキー入力をクリア"""
-    st.session_state.input = ""
+    st.session_state.input_text = ""
 
 
 def keypad_ok():
@@ -189,12 +191,17 @@ else:
         st.subheader(f"Question {st.session_state.question_index + 1}/10")
         st.markdown(f"## {st.session_state.question}")
 
-        # テキスト入力：Enterキーで送信
-        st.text_input(
-            "Answer",
-            key="input",
-            on_change=check_answer,
-        )
+        # テキスト入力（PC用）：Enterキー or ボタンで送信
+        with st.form("answer_form"):
+            answer_str = st.text_input(
+                "Answer",
+                value=st.session_state.input_text,
+            )
+            submitted = st.form_submit_button("OK (Enter)")
+
+        if submitted:
+            st.session_state.input_text = answer_str
+            check_answer()
 
         # テンキーUI（タブレット・スマホ向け）
         st.markdown("### Keypad")
