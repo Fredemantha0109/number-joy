@@ -174,20 +174,29 @@ if not st.session_state.started:
     st.button("START", on_click=start_game, use_container_width=True)
 else:
     if st.session_state.question_index < 10:
-        st.subheader(f"Question {st.session_state.question_index + 1}/10")
-        st.markdown(f"## {st.session_state.question}")
+        # 問題と電卓を横並びにして、iPadでスクロールしなくても
+        # 両方が1画面に収まるようにする。
+        col_q, col_pad = st.columns([1, 1])
 
-        # 入力欄（PCでキーボード派はここに直接入力してEnterでもOK）
-        st.text_input(
-            "Answer",
-            key="answer_input",
-            on_change=check_answer,
-        )
+        with col_q:
+            st.subheader(f"Question {st.session_state.question_index + 1}/10")
+            st.markdown(f"## {st.session_state.question}")
+
+            # 入力欄（PCでキーボード派はここに直接入力してEnterでもOK）
+            st.text_input(
+                "Answer",
+                key="answer_input",
+                on_change=check_answer,
+            )
+
+            if st.session_state.feedback:
+                st.write(st.session_state.feedback)
 
         # 電卓風キーパッド（iPad/スマホ用）
         # タップはブラウザ内だけで処理し、OKを押した時だけ実際の入力欄に
         # Enterキー入力として送信する（サーバーとの往復は1回だけなのでラグが出ない）。
-        components.html(
+        with col_pad:
+            components.html(
             """
             <style>
                 .nj-keypad {
@@ -300,12 +309,9 @@ else:
                 }
             })();
             </script>
-            """,
-            height=340,
-        )
-
-        if st.session_state.feedback:
-            st.write(st.session_state.feedback)
+                """,
+                height=340,
+            )
 
     else:
         elapsed = int(time.time() - st.session_state.start_time)
