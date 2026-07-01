@@ -25,6 +25,9 @@ if "feedback" not in st.session_state:
     st.session_state.feedback = ""
 if "ranking_saved" not in st.session_state:
     st.session_state.ranking_saved = False
+# 1回のプレイ内で出題済みの問題（重複出題を避けるため）
+if "used_questions" not in st.session_state:
+    st.session_state.used_questions = set()
 # テキスト入力欄に対応する内部状態
 if "answer_input" not in st.session_state:
     st.session_state.answer_input = ""
@@ -60,6 +63,18 @@ def generate_question():
         dividend = divisor * quotient  # 割られる数：必ず10〜99
 
         return f"{dividend} ÷ {divisor}", quotient
+
+
+def generate_unique_question():
+    """1回のプレイ内で、まだ出題していない問題を返す"""
+    for _ in range(50):
+        q, a = generate_question()
+        if q not in st.session_state.used_questions:
+            st.session_state.used_questions.add(q)
+            return q, a
+    # 50回試しても新しい問題が見つからない場合（起こりにくいが念のため）はそのまま使う
+    st.session_state.used_questions.add(q)
+    return q, a
 
 
 def get_sheet():
@@ -134,7 +149,8 @@ def start_game():
     st.session_state.answer_input = ""
     st.session_state.feedback = ""
     st.session_state.ranking_saved = False
-    q, a = generate_question()
+    st.session_state.used_questions = set()
+    q, a = generate_unique_question()
     st.session_state.question = q
     st.session_state.answer = a
 
@@ -144,7 +160,7 @@ def next_question():
     st.session_state.answer_input = ""
     st.session_state.feedback = ""
     if st.session_state.question_index < 10:
-        q, a = generate_question()
+        q, a = generate_unique_question()
         st.session_state.question = q
         st.session_state.answer = a
 
