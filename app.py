@@ -348,6 +348,19 @@ if not st.session_state.started:
     )
 else:
     if st.session_state.question_index < 10:
+        if st.session_state.pending_advance:
+            # 正解直後の一瞬だけ「せいかい」を見せてから次の問題に進む。
+            # ここではAnswer欄を作らないので、この下で next_question() が
+            # answer_input を書き換えてもエラーにならない。
+            st.subheader(f"Question {st.session_state.question_index + 1}/10")
+            st.markdown(f"## {st.session_state.question}")
+            st.success(st.session_state.feedback)
+
+            time.sleep(1)
+            st.session_state.pending_advance = False
+            next_question()
+            st.rerun()
+
         # 問題と電卓を横並びにして、iPadでスクロールしなくても
         # 両方が1画面に収まるようにする。
         col_q, col_pad = st.columns([1, 1])
@@ -364,15 +377,7 @@ else:
             )
 
             if st.session_state.feedback:
-                st.success(st.session_state.feedback) if st.session_state.pending_advance else st.write(
-                    st.session_state.feedback
-                )
-
-            if st.session_state.pending_advance:
-                time.sleep(1)
-                st.session_state.pending_advance = False
-                next_question()
-                st.rerun()
+                st.write(st.session_state.feedback)
 
         # 電卓風キーパッド（iPad/スマホ用）
         # タップはブラウザ内だけで処理し、OKを押した時だけ実際の入力欄に
