@@ -38,12 +38,12 @@ def generate_question():
     if random.choice(["mul", "div"]) == "mul":
         # 掛け算：2桁 × 1桁
         a = random.randint(10, 99)  # 2桁
-        b = random.randint(1, 9)    # 1桁
+        b = random.randint(2, 9)    # 1桁（1は簡単すぎるため除外）
         return f"{a} × {b}", a * b
     else:
         # 割り算：2桁 ÷ 1桁（必ず割り切れる）
         # 割られる数は2桁（10〜99）、答えは1桁（1〜9）
-        divisor = random.randint(1, 9)  # 割る数：1桁
+        divisor = random.randint(2, 9)  # 割る数：1桁（1は簡単すぎるため除外）
 
         # 答えの範囲を計算（割られる数が10〜99、答えが1〜9になるように）
         min_quotient = (10 + divisor - 1) // divisor  # 切り上げ：10以上
