@@ -271,6 +271,11 @@ else:
                             bubbles: true,
                         }));
                     });
+                    // フォーカスを残すとiPadでキーボードが再表示されたままになるため、
+                    // 送信直後（再描画が始まる前）にフォーカスを外す。
+                    setTimeout(function() {
+                        input.blur();
+                    }, 30);
                 }
 
                 document.querySelectorAll('.nj-key[data-digit]').forEach(function(btn) {
