@@ -258,8 +258,9 @@ def check_answer():
 
     if user == st.session_state.answer:
         st.session_state.correct_count += 1
-        st.session_state.feedback = "Correct!"
         st.session_state.answer_input = ""
+        # 次の問題へ切り替わる前に正解を通知しておく（次の画面で表示される）
+        st.toast("せいかい！ 🎉", icon="✅")
         next_question()
     else:
         st.session_state.feedback = "Try again"
@@ -375,6 +376,30 @@ else:
             <script>
             (function() {
                 var doc = window.parent.document;
+                var audioCtx = null;
+
+                function beep(freq, duration, volume) {
+                    try {
+                        if (!audioCtx) {
+                            var AC = window.AudioContext || window.webkitAudioContext;
+                            audioCtx = new AC();
+                        }
+                        if (audioCtx.state === 'suspended') {
+                            audioCtx.resume();
+                        }
+                        var osc = audioCtx.createOscillator();
+                        var gain = audioCtx.createGain();
+                        osc.type = 'sine';
+                        osc.frequency.value = freq;
+                        gain.gain.value = volume;
+                        osc.connect(gain);
+                        gain.connect(audioCtx.destination);
+                        var now = audioCtx.currentTime;
+                        osc.start(now);
+                        gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+                        osc.stop(now + duration);
+                    } catch (e) {}
+                }
 
                 function getInput() {
                     return doc.querySelector('input[aria-label="Answer"]');
@@ -389,18 +414,21 @@ else:
                 }
 
                 function appendDigit(digit) {
+                    beep(700, 0.06, 0.15);
                     var input = getInput();
                     if (!input) return;
                     setNativeValue(input, (input.value || '') + digit);
                 }
 
                 function clearValue() {
+                    beep(300, 0.1, 0.15);
                     var input = getInput();
                     if (!input) return;
                     setNativeValue(input, '');
                 }
 
                 function submit() {
+                    beep(1000, 0.12, 0.18);
                     var input = getInput();
                     if (!input) return;
                     input.focus();
