@@ -37,9 +37,10 @@ SPREADSHEET_URL = (
 
 def generate_question():
     if random.choice(["mul", "div"]) == "mul":
-        # 掛け算：2桁 × 1桁
-        a = random.randint(10, 99)  # 2桁
-        b = random.randint(2, 9)    # 1桁（1は簡単すぎるため除外）
+        # 掛け算：2桁 × 1桁（答えは必ず2桁以内=99以下にする）
+        b = random.randint(2, 9)        # 1桁（1は簡単すぎるため除外）
+        max_a = 99 // b                 # 答えが99を超えないaの上限
+        a = random.randint(10, max_a)   # 2桁
         return f"{a} × {b}", a * b
     else:
         # 割り算：2桁 ÷ 1桁（必ず割り切れる）
