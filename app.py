@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import random
 import time
 import json
@@ -181,6 +182,38 @@ else:
             "Answer",
             key="answer_input",
             on_change=check_answer,
+        )
+
+        # iPad/スマホ対策：
+        # 1) 数字専用の小さいキーパッドを出す（フルキーボードを避ける）
+        # 2) キーボード表示時に入力欄が見える位置まで自動スクロールする
+        components.html(
+            """
+            <script>
+            (function() {
+                function fixInput() {
+                    var doc = window.parent.document;
+                    var input = doc.querySelector('input[aria-label="Answer"]');
+                    if (!input) return;
+                    input.setAttribute('inputmode', 'numeric');
+                    input.setAttribute('pattern', '[0-9]*');
+                    input.setAttribute('autocomplete', 'off');
+                    input.scrollIntoView({behavior: 'smooth', block: 'center'});
+                }
+                setTimeout(fixInput, 150);
+                var doc = window.parent.document;
+                var input = doc.querySelector('input[aria-label="Answer"]');
+                if (input) {
+                    input.addEventListener('focus', function() {
+                        setTimeout(function() {
+                            input.scrollIntoView({behavior: 'smooth', block: 'center'});
+                        }, 300);
+                    });
+                }
+            })();
+            </script>
+            """,
+            height=0,
         )
 
         if st.session_state.feedback:
