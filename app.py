@@ -356,7 +356,7 @@ else:
             st.markdown(f"## {st.session_state.question}")
             st.success(st.session_state.feedback)
 
-            time.sleep(1)
+            time.sleep(0.4)
             st.session_state.pending_advance = False
             next_question()
             st.rerun()
