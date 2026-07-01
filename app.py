@@ -177,43 +177,126 @@ else:
         st.subheader(f"Question {st.session_state.question_index + 1}/10")
         st.markdown(f"## {st.session_state.question}")
 
-        # テキスト入力のみ。Enterキーで即判定。
+        # 入力欄（PCでキーボード派はここに直接入力してEnterでもOK）
         st.text_input(
             "Answer",
             key="answer_input",
             on_change=check_answer,
         )
 
-        # iPad/スマホ対策：
-        # 1) 数字専用の小さいキーパッドを出す（フルキーボードを避ける）
-        # 2) キーボード表示時に入力欄が見える位置まで自動スクロールする
+        # 電卓風キーパッド（iPad/スマホ用）
+        # タップはブラウザ内だけで処理し、OKを押した時だけ実際の入力欄に
+        # Enterキー入力として送信する（サーバーとの往復は1回だけなのでラグが出ない）。
         components.html(
             """
+            <style>
+                .nj-keypad {
+                    display: grid;
+                    grid-template-columns: repeat(3, 1fr);
+                    gap: 10px;
+                    max-width: 300px;
+                    margin: 12px auto 0 auto;
+                }
+                .nj-key {
+                    font-size: 28px;
+                    font-weight: bold;
+                    padding: 18px 0;
+                    border: none;
+                    border-radius: 14px;
+                    color: white;
+                    background: #4A90D9;
+                    touch-action: manipulation;
+                    user-select: none;
+                    -webkit-tap-highlight-color: transparent;
+                }
+                .nj-key:active {
+                    transform: scale(0.95);
+                    opacity: 0.85;
+                }
+                .nj-key.clear { background: #E05353; }
+                .nj-key.ok { background: #3CB371; }
+            </style>
+            <div class="nj-keypad">
+                <button class="nj-key" data-digit="1">1</button>
+                <button class="nj-key" data-digit="2">2</button>
+                <button class="nj-key" data-digit="3">3</button>
+                <button class="nj-key" data-digit="4">4</button>
+                <button class="nj-key" data-digit="5">5</button>
+                <button class="nj-key" data-digit="6">6</button>
+                <button class="nj-key" data-digit="7">7</button>
+                <button class="nj-key" data-digit="8">8</button>
+                <button class="nj-key" data-digit="9">9</button>
+                <button class="nj-key clear" id="nj-clear">C</button>
+                <button class="nj-key" data-digit="0">0</button>
+                <button class="nj-key ok" id="nj-ok">OK</button>
+            </div>
             <script>
             (function() {
-                function fixInput() {
-                    var doc = window.parent.document;
-                    var input = doc.querySelector('input[aria-label="Answer"]');
+                var doc = window.parent.document;
+
+                function getInput() {
+                    return doc.querySelector('input[aria-label="Answer"]');
+                }
+
+                function setNativeValue(el, value) {
+                    var setter = Object.getOwnPropertyDescriptor(
+                        window.parent.HTMLInputElement.prototype, 'value'
+                    ).set;
+                    setter.call(el, value);
+                    el.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+
+                function appendDigit(digit) {
+                    var input = getInput();
                     if (!input) return;
+                    setNativeValue(input, (input.value || '') + digit);
+                }
+
+                function clearValue() {
+                    var input = getInput();
+                    if (!input) return;
+                    setNativeValue(input, '');
+                }
+
+                function submit() {
+                    var input = getInput();
+                    if (!input) return;
+                    input.focus();
+                    ['keydown', 'keypress', 'keyup'].forEach(function(type) {
+                        input.dispatchEvent(new KeyboardEvent(type, {
+                            key: 'Enter',
+                            code: 'Enter',
+                            keyCode: 13,
+                            which: 13,
+                            bubbles: true,
+                        }));
+                    });
+                }
+
+                document.querySelectorAll('.nj-key[data-digit]').forEach(function(btn) {
+                    btn.addEventListener('click', function() {
+                        appendDigit(btn.getAttribute('data-digit'));
+                    });
+                });
+                document.getElementById('nj-clear').addEventListener('click', clearValue);
+                document.getElementById('nj-ok').addEventListener('click', submit);
+
+                // 物理キーボード利用時の保険：数字専用キーパッド＋自動スクロール
+                var input = getInput();
+                if (input) {
                     input.setAttribute('inputmode', 'numeric');
                     input.setAttribute('pattern', '[0-9]*');
                     input.setAttribute('autocomplete', 'off');
-                    input.scrollIntoView({behavior: 'smooth', block: 'center'});
-                }
-                setTimeout(fixInput, 150);
-                var doc = window.parent.document;
-                var input = doc.querySelector('input[aria-label="Answer"]');
-                if (input) {
                     input.addEventListener('focus', function() {
                         setTimeout(function() {
-                            input.scrollIntoView({behavior: 'smooth', block: 'center'});
+                            input.scrollIntoView({ behavior: 'smooth', block: 'center' });
                         }, 300);
                     });
                 }
             })();
             </script>
             """,
-            height=0,
+            height=340,
         )
 
         if st.session_state.feedback:
