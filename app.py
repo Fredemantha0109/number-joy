@@ -43,6 +43,9 @@ if "feedback" not in st.session_state:
     st.session_state.feedback = ""
 if "ranking_saved" not in st.session_state:
     st.session_state.ranking_saved = False
+# 正解直後、次の問題へ進む前に「せいかい」を表示するためのフラグ
+if "pending_advance" not in st.session_state:
+    st.session_state.pending_advance = False
 # 1回のプレイ内で出題済みの問題（重複出題を避けるため）
 if "used_questions" not in st.session_state:
     st.session_state.used_questions = set()
@@ -210,14 +213,51 @@ def update_ranking(score: int, elapsed_seconds: int):
 
     top5 = sorted_records[:5]
 
-    st.subheader("Ranking (Top 5)")
+    st.subheader("🏆 ランキング TOP5")
+
+    medals = ["🥇", "🥈", "🥉"]
+    current_player = st.session_state.get("player_name", "")
+
+    rows_html = ""
     for i, r in enumerate(top5, start=1):
-        st.write(
-            f"{i}. {r.get('Name', '')} - "
-            f"Score: {r.get('Score', '')}/10, "
-            f"Time: {r.get('Time', '')}s "
-            f"({r.get('Date', '')})"
-        )
+        rank_label = medals[i - 1] if i <= 3 else str(i)
+        name = r.get("Name", "")
+        score_val = r.get("Score", "")
+        time_val = r.get("Time", "")
+        date_val = r.get("Date", "")
+        is_me = name == current_player
+        row_style = "background:#FFF3CD;font-weight:bold;" if is_me else ""
+        rows_html += f"""
+        <tr style="{row_style}">
+            <td style="padding:10px 6px;text-align:center;font-size:1.4rem;border-bottom:1px solid #eee;">{rank_label}</td>
+            <td style="padding:10px 6px;font-size:1.15rem;border-bottom:1px solid #eee;">{name}</td>
+            <td style="padding:10px 6px;text-align:center;font-size:1.15rem;border-bottom:1px solid #eee;">{score_val}/10</td>
+            <td style="padding:10px 6px;text-align:center;font-size:1.15rem;border-bottom:1px solid #eee;">{time_val}秒</td>
+            <td style="padding:10px 6px;text-align:center;font-size:0.9rem;color:#888;border-bottom:1px solid #eee;">{date_val}</td>
+        </tr>
+        """
+
+    st.markdown(
+        f"""
+        <table style="width:100%;border-collapse:collapse;background:white;
+                       border-radius:12px;overflow:hidden;
+                       box-shadow:0 1px 6px rgba(0,0,0,0.15);">
+            <thead>
+                <tr style="background:#4A90D9;color:white;">
+                    <th style="padding:10px 6px;">順位</th>
+                    <th style="padding:10px 6px;text-align:left;">名前</th>
+                    <th style="padding:10px 6px;">正解数</th>
+                    <th style="padding:10px 6px;">タイム</th>
+                    <th style="padding:10px 6px;">日付</th>
+                </tr>
+            </thead>
+            <tbody>
+                {rows_html}
+            </tbody>
+        </table>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def start_game():
@@ -259,9 +299,9 @@ def check_answer():
     if user == st.session_state.answer:
         st.session_state.correct_count += 1
         st.session_state.answer_input = ""
-        # 次の問題へ切り替わる前に正解を通知しておく（次の画面で表示される）
-        st.toast("せいかい！ 🎉", icon="✅")
-        next_question()
+        st.session_state.feedback = "せいかい！ 🎉"
+        # まだ次の問題には進めない。いったんこの画面を表示してから進める。
+        st.session_state.pending_advance = True
     else:
         st.session_state.feedback = "Try again"
         st.session_state.answer_input = ""
@@ -324,7 +364,15 @@ else:
             )
 
             if st.session_state.feedback:
-                st.write(st.session_state.feedback)
+                st.success(st.session_state.feedback) if st.session_state.pending_advance else st.write(
+                    st.session_state.feedback
+                )
+
+            if st.session_state.pending_advance:
+                time.sleep(1)
+                st.session_state.pending_advance = False
+                next_question()
+                st.rerun()
 
         # 電卓風キーパッド（iPad/スマホ用）
         # タップはブラウザ内だけで処理し、OKを押した時だけ実際の入力欄に
