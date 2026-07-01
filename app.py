@@ -8,6 +8,24 @@ import gspread
 st.set_page_config(page_title="Number Joy", layout="centered")
 st.title("Number Joy")
 
+# Answer欄（ラベル・入力欄）を問題文と同じくらい大きく表示する
+st.markdown(
+    """
+    <style>
+        div[data-testid="stTextInput"] label p {
+            font-size: 2rem !important;
+            font-weight: bold;
+        }
+        div[data-testid="stTextInput"] input {
+            font-size: 2rem !important;
+            height: 3.2rem !important;
+            padding: 0.4rem 0.8rem !important;
+        }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 # 状態の初期化
 if "started" not in st.session_state:
     st.session_state.started = False
@@ -31,6 +49,9 @@ if "used_questions" not in st.session_state:
 # テキスト入力欄に対応する内部状態
 if "answer_input" not in st.session_state:
     st.session_state.answer_input = ""
+# 選択中のプレイヤー名
+if "player_name" not in st.session_state:
+    st.session_state.player_name = ""
 
 SPREADSHEET_URL = (
     "https://docs.google.com/spreadsheets/d/"
@@ -96,6 +117,63 @@ def get_sheet():
         return None
 
 
+def get_players_sheet():
+    """プレイヤー名簿シート（Players）を取得。無ければ新規作成する。失敗時はNoneを返す"""
+    try:
+        creds_json = st.secrets["google_credentials"]
+    except Exception:
+        return None
+
+    try:
+        creds_dict = json.loads(creds_json)
+        client = gspread.service_account_from_dict(creds_dict)
+        sh = client.open_by_url(SPREADSHEET_URL)
+        try:
+            return sh.worksheet("Players")
+        except gspread.exceptions.WorksheetNotFound:
+            ws = sh.add_worksheet(title="Players", rows=100, cols=1)
+            ws.append_row(["Name"])
+            return ws
+    except Exception:
+        return None
+
+
+def get_players():
+    """登録済みプレイヤー名の一覧を返す（同じセッション内はキャッシュする）"""
+    if "players_list" in st.session_state:
+        return st.session_state.players_list
+
+    sheet = get_players_sheet()
+    if sheet is None:
+        # Google連携が無い場合はこのセッション限りの名簿になる
+        names = []
+    else:
+        try:
+            values = sheet.col_values(1)
+            names = [v.strip() for v in values[1:] if v.strip()]  # ヘッダー行を除く
+        except Exception:
+            names = []
+
+    st.session_state.players_list = names
+    return names
+
+
+def add_player(name: str):
+    """新しいプレイヤー名を名簿に追加する（重複は追加しない）"""
+    names = get_players()
+    if name in names:
+        return
+
+    sheet = get_players_sheet()
+    if sheet is not None:
+        try:
+            sheet.append_row([name])
+        except Exception:
+            pass
+
+    st.session_state.players_list = names + [name]
+
+
 def update_ranking(score: int, elapsed_seconds: int):
     """スプレッドシートに結果を追記し、ランキング上位5件を表示する"""
     sheet = get_sheet()
@@ -113,7 +191,8 @@ def update_ranking(score: int, elapsed_seconds: int):
     # 今回の結果を一度だけ追記
     if not st.session_state.ranking_saved:
         date_str = time.strftime("%Y-%m-%d")
-        sheet.append_row(["Player", score, elapsed_seconds, date_str])
+        player_name = st.session_state.get("player_name") or "Player"
+        sheet.append_row([player_name, score, elapsed_seconds, date_str])
         st.session_state.ranking_saved = True
 
     # 全データを取得してランキングを計算
@@ -188,7 +267,44 @@ def check_answer():
 
 
 if not st.session_state.started:
-    st.button("START", on_click=start_game, use_container_width=True)
+    st.subheader("プレイヤーをえらんでね")
+
+    players = get_players()
+
+    if players:
+        cols = st.columns(min(len(players), 4))
+        for i, name in enumerate(players):
+            with cols[i % len(cols)]:
+                selected = name == st.session_state.player_name
+                if st.button(
+                    ("✅ " if selected else "") + name,
+                    key=f"player_btn_{name}",
+                    use_container_width=True,
+                ):
+                    st.session_state.player_name = name
+                    st.rerun()
+    else:
+        st.write("まだプレイヤーが登録されていません。下から追加してください。")
+
+    with st.form("add_player_form", clear_on_submit=True):
+        new_name = st.text_input("新しいプレイヤーを追加")
+        submitted = st.form_submit_button("追加する")
+        if submitted and new_name.strip():
+            add_player(new_name.strip())
+            st.session_state.player_name = new_name.strip()
+            st.rerun()
+
+    if st.session_state.player_name:
+        st.success(f"選択中のプレイヤー: {st.session_state.player_name}")
+    else:
+        st.info("START するにはプレイヤーを選んでください。")
+
+    st.button(
+        "START",
+        on_click=start_game,
+        use_container_width=True,
+        disabled=not st.session_state.player_name,
+    )
 else:
     if st.session_state.question_index < 10:
         # 問題と電卓を横並びにして、iPadでスクロールしなくても
